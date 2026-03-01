@@ -1,4 +1,7 @@
-# This app explores a core macroeconomic question: job displacement vs AI job productivity surplus
+Open at https://laurobrcwb.github.io/job-surplus-simulator/preview.html
+
+# Job surplus simulator
+*This app explores a core macroeconomic question: job displacement vs AI job productivity surplus.*
 
 If major economies lose 20–50% of their population by 2100, will AI-driven job loss be real — or will automation simply replace missing workers?
 
