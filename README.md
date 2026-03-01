@@ -1,4 +1,4 @@
-Open at https://laurobrcwb.github.io/job-surplus-simulator/preview.html
+Open at https://laurobrcwb.github.io/job-surplus-simulator/index.html
 
 # Job surplus simulator
 *This app explores a core macroeconomic question: job displacement vs AI job productivity surplus.*
