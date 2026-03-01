@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Population × AI labor simulator</title>
+
+    <!-- Chart.js (no build, no server) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+      :root{
+        --bg1:#f8fafc;
+        --bg2:#ffffff;
+        --bg3:#f1f5f9;
+        --border:#e2e8f0;
+        --text:#0f172a;
+        --muted:#64748b;
+        --cyan:#0891b2;
+        --blue:#2563eb;
+        --cyan50:#ecfeff;
+        --red50:#fef2f2;
+        --red:#b91c1c;
+        --shadow: 0 8px 24px rgba(2,6,23,.06);
+        --shadow2: 0 10px 30px rgba(2,6,23,.08);
+        --radius: 18px;
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        color:var(--text);
+        background: radial-gradient(1200px 500px at 30% 0%, rgba(8,145,178,.10), transparent 60%),
+                    radial-gradient(1200px 500px at 70% 0%, rgba(37,99,235,.10), transparent 60%),
+                    linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      }
+      .container{max-width:1200px;margin:0 auto;padding:16px 16px 32px}
+      .topbar{
+        position:sticky;top:0;z-index:10;
+        background: rgba(255,255,255,.82);
+        backdrop-filter: blur(10px);
+        border-bottom:1px solid var(--border);
+      }
+      .topbar-inner{max-width:1200px;margin:0 auto;padding:14px 16px;display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+      .kicker{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgba(15,23,42,.55)}
+      .title{
+        margin:4px 0 0;
+        font-size:28px;
+        font-weight:800;
+        letter-spacing:-.02em;
+        background: linear-gradient(90deg, var(--cyan), var(--blue));
+        -webkit-background-clip:text;background-clip:text;color:transparent;
+        position:relative;
+      }
+      .title:before{
+        content:"";
+        position:absolute;left:-8px;right:-8px;top:-8px;bottom:-8px;
+        background: linear-gradient(90deg, rgba(8,145,178,.18), rgba(37,99,235,.18));
+        filter: blur(16px);
+        z-index:-1;border-radius:14px;
+      }
+      .pill{
+        display:inline-flex;align-items:center;
+        padding:3px 10px;border:1px solid var(--border);
+        border-radius:999px;font-size:12px;color:var(--muted);background:white;
+      }
+      .btn{
+        border:1px solid var(--border);
+        background:white;
+        padding:9px 14px;
+        border-radius:999px;
+        font-weight:600;
+        cursor:pointer;
+        transition:.15s ease;
+      }
+      .btn:hover{border-color:rgba(8,145,178,.55); color:var(--cyan)}
+      .btn.active{background:var(--cyan);color:white;border-color:var(--cyan); box-shadow: var(--shadow)}
+      .grid{display:grid;gap:16px;grid-template-columns: 1fr}
+      @media (min-width: 980px){ .grid{grid-template-columns: 360px 1fr; gap:20px}}
+      .panel{
+        background:white;
+        border:1px solid var(--border);
+        border-radius:var(--radius);
+        box-shadow: var(--shadow);
+      }
+      .panel-header{padding:14px 16px;border-bottom:1px solid var(--border)}
+      .panel-title{font-weight:700}
+      .panel-sub{margin-top:4px;font-size:12px;color:var(--muted)}
+      .section{padding:14px 16px}
+      .card{
+        border:1px solid var(--border);
+        border-radius:16px;
+        padding:12px;
+        background:white;
+      }
+      .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+      .label{font-size:12px;color:var(--muted)}
+      .value{font-size:12px;font-weight:700}
+      input[type="range"]{width:100%}
+      .mini-btn{
+        border:1px solid var(--border);
+        background:white;
+        padding:6px 10px;
+        border-radius:999px;
+        font-size:12px;
+        cursor:pointer;
+      }
+      .mini-btn:hover{background: #f8fafc}
+      .country-grid{display:grid;grid-template-columns: repeat(3, 1fr); gap:8px}
+      .chip{
+        border:1px solid var(--border);
+        background:white;
+        padding:10px 10px;
+        border-radius:14px;
+        font-weight:700;
+        cursor:pointer;
+        transition:.15s ease;
+      }
+      .chip:hover{background:#f8fafc}
+      .chip.active{background:var(--cyan);color:white;border-color:var(--cyan); box-shadow: var(--shadow)}
+      .preset-grid{display:grid;grid-template-columns:1fr;gap:8px}
+      @media (min-width: 520px){ .preset-grid{grid-template-columns: 1fr 1fr}}
+      .preset{
+        border:1px solid var(--border);
+        background:white;
+        border-radius:16px;
+        padding:10px;
+        cursor:pointer;
+        transition:.15s ease;
+        position:relative;
+      }
+      .preset:hover{border-color:rgba(8,145,178,.55); background:var(--cyan50)}
+      .preset.active{background:var(--cyan); color:white; border-color:var(--cyan); box-shadow: var(--shadow2)}
+      .preset-title{font-weight:800;font-size:12px}
+      .preset-sub{margin-top:4px;font-size:12px;opacity:.75}
+      .itip{
+        width:18px;height:18px;border-radius:999px;border:1px solid var(--border);
+        display:inline-flex;align-items:center;justify-content:center;
+        font-size:11px;opacity:.75;background:white;color:var(--text);
+        flex:0 0 auto;
+      }
+      .preset.active .itip{border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.15); color:white}
+      .tooltip{
+        position:absolute;
+        right:8px; top:30px;
+        width:280px;
+        background:white;
+        border:1px solid var(--border);
+        border-radius:16px;
+        padding:10px;
+        box-shadow: var(--shadow2);
+        font-size:12px;
+        color:var(--text);
+        display:none;
+        z-index:50;
+      }
+      .preset.active .tooltip{color:var(--text)}
+      .tooltip .muted{color:var(--muted)}
+      .result{
+        position:relative;
+        overflow:hidden;
+      }
+      .result:before{
+        content:"";
+        position:absolute;left:0;top:0;bottom:0;width:5px;
+        background: linear-gradient(180deg, var(--cyan), var(--blue));
+      }
+      .result-inner{padding-left:12px}
+      .h2{font-size:18px;font-weight:800;margin:0}
+      .muted{color:var(--muted)}
+      .big{
+        font-size:26px;font-weight:900; letter-spacing:-.02em;
+      }
+      .bubble{
+        margin-top:10px;
+        border-radius:14px;
+        padding:10px 12px;
+        border:1px solid var(--border);
+        font-weight:600;
+      }
+      .bubble.surplus{background:var(--red50);border-color:#fecaca;color:var(--red)}
+      .bubble.shortage{background:var(--cyan50);border-color:#a5f3fc;color:#0e7490}
+      .bubble.balanced{background:#f8fafc;border-color:var(--border);color:#334155}
+      .stats{display:grid;grid-template-columns:1fr;gap:10px}
+      @media (min-width: 860px){ .stats{grid-template-columns: repeat(4, 1fr)}}
+      .stat{
+        border:1px solid var(--border);
+        border-radius:16px;
+        padding:12px;
+        background:white;
+        box-shadow: var(--shadow);
+      }
+      .stat .k{font-size:12px;color:var(--muted)}
+      .stat .v{margin-top:4px;font-size:18px;font-weight:800}
+      .stat .s{margin-top:4px;font-size:12px;color:var(--muted)}
+      .charts{display:grid;grid-template-columns:1fr;gap:16px}
+      @media (min-width: 860px){ .charts{grid-template-columns: 1fr 1fr}}
+      .chartbox{border:1px solid var(--border);border-radius:16px;padding:12px;background:white;box-shadow:var(--shadow)}
+      canvas{max-width:100%}
+      .footer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
+      a{color:var(--blue);text-decoration:underline}
+    </style>
+  </head>
+
+  <body>
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div>
+          <div class="kicker">Population decline × productivity growth</div>
+          <div class="title">Will AI job loss be “real” if populations shrink?</div>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+            <span class="pill">Demography as constraint</span>
+            <span class="pill">Productivity as lever</span>
+            <span class="pill">Surplus vs shortage, not prophecy</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px">
+          <button id="btnAssumptions" class="btn">Assumptions</button>
+          <button id="btnSources" class="btn">Sources</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="grid">
+        <!-- LEFT -->
+        <aside class="panel" style="align-self:start">
+          <div class="panel-header">
+            <div class="panel-title">Instruments</div>
+            <div class="panel-sub">Tune assumptions → see results instantly.</div>
+          </div>
+
+          <div class="section" style="display:flex; flex-direction:column; gap:12px">
+            <div class="card">
+              <div class="row">
+                <div style="font-weight:800;font-size:13px">Pre-packaged simulations</div>
+                <div class="label">hover “i”</div>
+              </div>
+              <div class="panel-sub" style="margin-top:6px">One-click macro assumptions based on cited ranges.</div>
+              <div id="presetGrid" class="preset-grid" style="margin-top:10px"></div>
+            </div>
+
+            <div class="card">
+              <div style="font-weight:800;font-size:13px">Country baseline</div>
+              <div id="countryGrid" class="country-grid" style="margin-top:10px"></div>
+              <div class="panel-sub" style="margin-top:8px">
+                <span id="countryName" style="font-weight:800"></span> • baseline population
+                <span id="countryPop" style="font-weight:800"></span>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="row">
+                <div style="font-weight:800;font-size:13px">Demography</div>
+                <span class="pill">to 2100</span>
+              </div>
+
+              <div style="margin-top:12px">
+                <div class="row">
+                  <div class="label">Population loss by 2100</div>
+                  <div class="value"><span id="popLossLabel"></span>%</div>
+                </div>
+                <input id="popLoss" type="range" min="0" max="60" step="1" />
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+                  <button class="mini-btn" data-set-pop="20">20%</button>
+                  <button class="mini-btn" data-set-pop="50">50%</button>
+                </div>
+              </div>
+
+              <div style="margin-top:14px">
+                <div class="row">
+                  <div class="label">Employed share of population</div>
+                  <div class="value"><span id="empShareLabel"></span>%</div>
+                </div>
+                <input id="empShare" type="range" min="0.25" max="0.60" step="0.01" />
+                <div class="panel-sub" style="margin-top:6px">
+                  Proxy for participation, unemployment, retirement age, migration, health.
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="row">
+                <div style="font-weight:800;font-size:13px">Productivity & output</div>
+                <span class="pill">compound</span>
+              </div>
+
+              <div style="margin-top:12px">
+                <div class="row">
+                  <div class="label">Annual productivity growth</div>
+                  <div class="value"><span id="prodLabel"></span>% / yr</div>
+                </div>
+                <input id="prod" type="range" min="0" max="7" step="0.1" />
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+                  <button class="mini-btn" data-set-prod="3">3%</button>
+                  <button class="mini-btn" data-set-prod="5">5%</button>
+                </div>
+              </div>
+
+              <div style="margin-top:14px">
+                <div class="row">
+                  <div class="label">Years productivity compounds</div>
+                  <div class="value"><span id="prodYearsLabel"></span> years</div>
+                </div>
+                <input id="prodYears" type="range" min="5" max="50" step="1" />
+                <div class="panel-sub" style="margin-top:6px">Then held flat (simplification).</div>
+              </div>
+
+              <div style="margin-top:14px">
+                <div class="row">
+                  <div class="label">Annual real output growth (optional)</div>
+                  <div class="value"><span id="outLabel"></span>% / yr</div>
+                </div>
+                <input id="out" type="range" min="-2" max="4" step="0.1" />
+                <div class="panel-sub" style="margin-top:6px">Keep 0% for “same output”.</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- RIGHT -->
+        <main style="display:flex; flex-direction:column; gap:14px">
+          <div class="panel result">
+            <div class="section result-inner">
+              <div class="kicker">Result (balance-sheet)</div>
+              <div class="row" style="margin-top:6px; align-items:flex-start">
+                <div style="flex:1">
+                  <h2 id="headlineTitle" class="h2"></h2>
+                  <div id="headlineDetail" class="muted" style="margin-top:6px"></div>
+                  <div id="headlineBubble" class="bubble"></div>
+                </div>
+                <div style="text-align:right; min-width:220px">
+                  <div class="label">Surplus / shortage of workers</div>
+                  <div class="big" id="gapBig"></div>
+                  <div class="label" style="margin-top:6px">(relative to baseline employed workforce today)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="k">Baseline employed workforce (today)</div>
+              <div class="v" id="statBaseline"></div>
+              <div class="s" id="statBaselineSub"></div>
+            </div>
+            <div class="stat">
+              <div class="k">Population in 2100</div>
+              <div class="v" id="statPop2100"></div>
+              <div class="s" id="statPop2100Sub"></div>
+            </div>
+            <div class="stat">
+              <div class="k">Available workers in 2100</div>
+              <div class="v" id="statAvail"></div>
+              <div class="s">Assumes employed share constant</div>
+            </div>
+            <div class="stat">
+              <div class="k" id="statReqLabel"></div>
+              <div class="v" id="statReq"></div>
+              <div class="s" id="statReqSub"></div>
+            </div>
+          </div>
+
+          <div class="charts">
+            <div class="chartbox">
+              <div style="font-weight:800">Timeline: available vs required workers</div>
+              <div class="panel-sub" style="margin-top:4px">Population declines linearly to 2100. Productivity compounds for N years.</div>
+              <div style="margin-top:10px"><canvas id="chartTimeline" height="230"></canvas></div>
+            </div>
+
+            <div class="chartbox">
+              <div style="font-weight:800">Cross-country comparison</div>
+              <div class="panel-sub" style="margin-top:4px">Surplus (positive) or shortage (negative) under two pop-loss cases.</div>
+              <div style="margin-top:10px"><canvas id="chartCompare" height="230"></canvas></div>
+              <div class="panel-sub" style="margin-top:8px">
+                Tip: interpret <b>surplus</b> as displacement only if demand doesn’t expand or labor can’t absorb via hours, wages, retraining.
+              </div>
+            </div>
+          </div>
+
+          <div id="modalAssumptions" class="panel" style="display:none">
+            <div class="section">
+              <div class="row">
+                <div style="font-weight:900">Assumptions & limitations</div>
+                <button id="closeAssumptions" class="btn">Close</button>
+              </div>
+              <ul style="margin-top:10px; line-height:1.4">
+                <li><b>Balance-sheet, not forecast.</b> Available workers vs required workers under your chosen output path.</li>
+                <li><b>Linear population decline</b> to 2100; no age-structure dynamics.</li>
+                <li><b>Employed share</b> compresses participation, unemployment, retirement, migration.</li>
+                <li><b>Productivity compounds for N years, then flat.</b></li>
+                <li><b>Demand matters.</b> Output growth can absorb labor or amplify displacement.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="modalSources" class="panel" style="display:none">
+            <div class="section">
+              <div class="row">
+                <div style="font-weight:900">Sources</div>
+                <button id="closeSources" class="btn">Close</button>
+              </div>
+              <div style="margin-top:10px; display:grid; gap:10px">
+                <div class="card">
+                  <b>McKinsey (Jun 2023)</b> – genAI productivity band (~0.1–0.6% annually through ~2040).
+                  <div style="margin-top:6px"><a target="_blank" href="https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier">Open</a></div>
+                </div>
+                <div class="card">
+                  <b>McKinsey Global Institute (Jan 2025)</b> – depopulation and rising dependency.
+                  <div style="margin-top:6px"><a target="_blank" href="https://www.mckinsey.com/mgi/our-research/dependency-and-depopulation-confronting-the-consequences-of-a-new-demographic-reality">Open</a></div>
+                </div>
+                <div class="card">
+                  <b>Dallas Fed (Jun 24, 2025)</b> – cites Goldman: AI productivity boost ~0.3–3.0 pp/yr (median ~1.5 pp/yr).
+                  <div style="margin-top:6px"><a target="_blank" href="https://www.dallasfed.org/research/economics/2025/0624">Open</a></div>
+                </div>
+              </div>
+              <div class="panel-sub" style="margin-top:10px">
+                Population anchors are simple baselines; swap for national statistical offices if you prefer.
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-note">
+            Built as a sandbox simulator. For a defensible forecast: sector adoption, wage/price elasticities, reallocation frictions, age-structure dynamics.
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      // ---------- Data ----------
+      const COUNTRIES = [
+        { key: "DE", name: "Germany", pop: 83644258 },
+        { key: "FR", name: "France", pop: 66746401 },
+        { key: "US", name: "United States", pop: 349035494 },
+        { key: "SE", name: "Sweden", pop: 10600000 },
+        { key: "BR", name: "Brazil", pop: 203000000 },
+        { key: "CN", name: "China", pop: 1408000000 },
+      ];
+
+      const PRESETS = [
+        { id:"mck20", title:"Mild displacement risk", popLossPct:20, prod:0.3, years:17,
+          note:"Low AI productivity (+0.3%/yr for ~17y) with 20% population decline. Mild surplus labor risk: gradual displacement, mostly absorbed via retirement, reduced hours, and sector shifts."},
+        { id:"mck50", title:"Demographic cushion", popLossPct:50, prod:0.3, years:17,
+          note:"Low AI productivity (+0.3%/yr) with 50% population decline. Demography dominates: automation mainly compensates for missing workers; structural shortages likely in key sectors."},
+        { id:"mid20", title:"Moderate job displacement", popLossPct:20, prod:1.5, years:10,
+          note:"Mid-range AI boost (~+1.5 pp/yr for 10y) with 20% population loss. Noticeable surplus labor risk: wage pressure, faster skill obsolescence, stronger need for retraining and demand expansion."},
+        { id:"mid50", title:"Emerging labor shortage", popLossPct:50, prod:1.5, years:10,
+          note:"Mid-range AI boost with 50% population decline. Productivity offsets part of the demographic shock, but shortages likely persist; automation becomes strategic necessity."},
+        { id:"hi20", title:"Massive job displacement", popLossPct:20, prod:3.0, years:10,
+          note:"High AI acceleration (~+3 pp/yr for 10y) with only 20% population loss. Strong surplus labor risk: rapid displacement, wage compression, and major reallocation across sectors."},
+        { id:"hi50", title:"Severe labor shortage", popLossPct:50, prod:3.0, years:10,
+          note:"High AI acceleration with 50% population decline. Even aggressive productivity gains struggle to replace missing workers; chronic labor scarcity and automation-driven restructuring."},
+      ];
+
+      // ---------- State ----------
+      const state = {
+        country: "DE",
+        employmentShare: 0.45,
+        popLossPct: 20,
+        annualProdPct: 3.0,
+        prodYears: 30,
+        annualOutputPct: 0.0,
+        openTip: null,
+      };
+
+      // ---------- Helpers ----------
+      const fmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+      const fmt1 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+
+      const pctToFactor = (pct) => 1 + pct/100;
+
+      function calcScenario(pop0){
+        const baselineWork = pop0 * state.employmentShare;
+        const pop2100 = pop0 * (1 - state.popLossPct/100);
+        const availableWork = pop2100 * state.employmentShare;
+
+        const prodFactor = Math.pow(pctToFactor(state.annualProdPct), state.prodYears);
+        const outputFactor = Math.pow(pctToFactor(state.annualOutputPct), state.prodYears);
+
+        const requiredWork = (baselineWork * outputFactor) / prodFactor;
+        const gap = availableWork - requiredWork;
+
+        return { baselineWork, pop2100, availableWork, requiredWork, gap, prodFactor, outputFactor };
+      }
+
+      function buildTimeline(pop0, startYear=2026, endYear=2100){
+        const yearsTotal = endYear - startYear;
+        const baselineWork = pop0 * state.employmentShare;
+        const rows = [];
+        for(let t=0; t<=yearsTotal; t++){
+          const year = startYear + t;
+          const frac = t/yearsTotal;
+          const pop = pop0 * (1 - (state.popLossPct/100)*frac);
+          const available = pop * state.employmentShare;
+
+          const prodT = Math.min(t, state.prodYears);
+          const prodFactor = Math.pow(pctToFactor(state.annualProdPct), prodT);
+          const outputFactor = Math.pow(pctToFactor(state.annualOutputPct), t);
+          const required = (baselineWork * outputFactor) / prodFactor;
+
+          rows.push({ year, available, required });
+        }
+        return rows;
+      }
+
+      function headlineFor(gap){
+        if(gap > 0){
+          return {
+            tone:"surplus",
+            title:"Surplus labor (potential displacement)",
+            detail:"Available workers exceed the workers required for the assumed output.",
+            bubble:"Why this is worrisome: productivity is rising faster than labor demand. Without demand growth or reskilling, expect wage pressure, skill obsolescence, and structural unemployment risk."
+          };
+        }
+        if(gap < 0){
+          return {
+            tone:"shortage",
+            title:"Labor shortage (AI fills the gap)",
+            detail:"Required workers exceed available workers.",
+            bubble:"Why AI & new tech help: automation becomes compensatory—augmenting missing workers, sustaining output, supporting aging societies, and preventing economic contraction."
+          };
+        }
+        return {
+          tone:"balanced",
+          title:"Rough balance",
+          detail:"Productivity roughly offsets demographic decline.",
+          bubble:"This equilibrium is fragile. Small shifts in demand growth, participation, or adoption speed can flip the system toward shortage or displacement."
+        };
+      }
+
+      // ---------- Render UI ----------
+      const els = {
+        presetGrid: document.getElementById("presetGrid"),
+        countryGrid: document.getElementById("countryGrid"),
+        countryName: document.getElementById("countryName"),
+        countryPop: document.getElementById("countryPop"),
+
+        popLoss: document.getElementById("popLoss"),
+        popLossLabel: document.getElementById("popLossLabel"),
+        empShare: document.getElementById("empShare"),
+        empShareLabel: document.getElementById("empShareLabel"),
+        prod: document.getElementById("prod"),
+        prodLabel: document.getElementById("prodLabel"),
+        prodYears: document.getElementById("prodYears"),
+        prodYearsLabel: document.getElementById("prodYearsLabel"),
+        out: document.getElementById("out"),
+        outLabel: document.getElementById("outLabel"),
+
+        headlineTitle: document.getElementById("headlineTitle"),
+        headlineDetail: document.getElementById("headlineDetail"),
+        headlineBubble: document.getElementById("headlineBubble"),
+        gapBig: document.getElementById("gapBig"),
+
+        statBaseline: document.getElementById("statBaseline"),
+        statBaselineSub: document.getElementById("statBaselineSub"),
+        statPop2100: document.getElementById("statPop2100"),
+        statPop2100Sub: document.getElementById("statPop2100Sub"),
+        statAvail: document.getElementById("statAvail"),
+        statReqLabel: document.getElementById("statReqLabel"),
+        statReq: document.getElementById("statReq"),
+        statReqSub: document.getElementById("statReqSub"),
+
+        btnAssumptions: document.getElementById("btnAssumptions"),
+        btnSources: document.getElementById("btnSources"),
+        modalAssumptions: document.getElementById("modalAssumptions"),
+        modalSources: document.getElementById("modalSources"),
+        closeAssumptions: document.getElementById("closeAssumptions"),
+        closeSources: document.getElementById("closeSources"),
+      };
+
+      // Charts
+      let timelineChart = null;
+      let compareChart = null;
+
+      function renderPresets(){
+        els.presetGrid.innerHTML = "";
+        PRESETS.forEach(p => {
+          const active = state.popLossPct===p.popLossPct && state.annualProdPct===p.prod && state.prodYears===p.years;
+          const div = document.createElement("div");
+          div.className = "preset" + (active ? " active" : "");
+          div.innerHTML = `
+            <div class="row" style="align-items:flex-start">
+              <div class="preset-title">${p.title}</div>
+              <div class="itip" data-tip="${p.id}">i</div>
+            </div>
+            <div class="preset-sub">${p.popLossPct}% pop loss • ${p.prod}%/yr • ${p.years}y</div>
+            <div class="tooltip" id="tip-${p.id}">
+              ${p.note}
+              <div class="muted" style="margin-top:8px">Click card to apply.</div>
+            </div>
+          `;
+          div.addEventListener("click", () => {
+            state.openTip = null;
+            state.popLossPct = p.popLossPct;
+            state.annualProdPct = p.prod;
+            state.prodYears = p.years;
+            syncControls();
+            renderAll();
+          });
+
+          // tooltip only on "i"
+          const itip = div.querySelector(".itip");
+          const tip = div.querySelector("#tip-" + p.id);
+          itip.addEventListener("mouseenter", (e) => { e.stopPropagation(); state.openTip = p.id; showTip(div, p.id); });
+          itip.addEventListener("mouseleave", (e) => { e.stopPropagation(); state.openTip = null; hideAllTips(); });
+          itip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            state.openTip = (state.openTip === p.id) ? null : p.id;
+            if(state.openTip) showTip(div, p.id); else hideAllTips();
+          });
+
+          els.presetGrid.appendChild(div);
+        });
+      }
+
+      function hideAllTips(){
+        document.querySelectorAll(".tooltip").forEach(t => t.style.display = "none");
+      }
+      function showTip(presetDiv, id){
+        hideAllTips();
+        const tip = presetDiv.querySelector("#tip-" + id);
+        if(tip) tip.style.display = "block";
+      }
+
+      function renderCountries(){
+        els.countryGrid.innerHTML = "";
+        COUNTRIES.forEach(c => {
+          const b = document.createElement("button");
+          b.className = "chip" + (state.country===c.key ? " active" : "");
+          b.textContent = c.key;
+          b.addEventListener("click", () => { state.country = c.key; renderAll(); });
+          els.countryGrid.appendChild(b);
+        });
+      }
+
+      function syncControls(){
+        els.popLoss.value = state.popLossPct;
+        els.empShare.value = state.employmentShare;
+        els.prod.value = state.annualProdPct;
+        els.prodYears.value = state.prodYears;
+        els.out.value = state.annualOutputPct;
+      }
+
+      function renderControlsLabels(){
+        els.popLossLabel.textContent = state.popLossPct;
+        els.empShareLabel.textContent = fmt1.format(state.employmentShare*100);
+        els.prodLabel.textContent = fmt1.format(state.annualProdPct);
+        els.prodYearsLabel.textContent = state.prodYears;
+        els.outLabel.textContent = fmt1.format(state.annualOutputPct);
+      }
+
+      function renderOutputs(){
+        const c = COUNTRIES.find(x => x.key===state.country);
+        els.countryName.textContent = c.name;
+        els.countryPop.textContent = fmt.format(c.pop);
+
+        const sc = calcScenario(c.pop);
+        const h = headlineFor(sc.gap);
+
+        els.headlineTitle.textContent = h.title;
+        els.headlineDetail.textContent = h.detail;
+        els.headlineBubble.textContent = h.bubble;
+        els.headlineBubble.className = "bubble " + h.tone;
+
+        const gapAbs = Math.abs(sc.gap);
+        els.gapBig.textContent = (sc.gap>=0?"+":"-") + fmt.format(gapAbs);
+
+        els.statBaseline.textContent = fmt.format(sc.baselineWork);
+        els.statBaselineSub.textContent = `Population ${fmt.format(c.pop)} × employed share ${fmt1.format(state.employmentShare*100)}%`;
+
+        els.statPop2100.textContent = fmt.format(sc.pop2100);
+        els.statPop2100Sub.textContent = `${state.popLossPct}% below baseline`;
+
+        els.statAvail.textContent = fmt.format(sc.availableWork);
+
+        els.statReqLabel.textContent = `Workers required (after ${state.prodYears}y prod growth)`;
+        els.statReq.textContent = fmt.format(sc.requiredWork);
+        els.statReqSub.textContent = `Output factor ×${sc.outputFactor.toFixed(2)}; Prod factor ×${sc.prodFactor.toFixed(2)}`;
+      }
+
+      function renderCharts(){
+        const c = COUNTRIES.find(x => x.key===state.country);
+        const tl = buildTimeline(c.pop);
+
+        // Timeline chart
+        const ctx1 = document.getElementById("chartTimeline").getContext("2d");
+        if(timelineChart) timelineChart.destroy();
+        timelineChart = new Chart(ctx1, {
+          type: "line",
+          data: {
+            labels: tl.map(r => r.year),
+            datasets: [
+              { label:"Available workers", data: tl.map(r => r.available), tension:.25 },
+              { label:"Required workers", data: tl.map(r => r.required), tension:.25 },
+            ]
+          },
+          options: {
+            responsive:true,
+            plugins:{
+              legend:{ position:"bottom" },
+              tooltip:{ callbacks:{
+                label: (ctx)=> `${ctx.dataset.label}: ${fmt.format(ctx.raw)}`
+              }}
+            },
+            scales:{
+              y:{ ticks:{ callback:(v)=> `${Math.round(v/1e6)}M` } },
+              x:{ ticks:{ maxTicksLimit: 8 } }
+            }
+          }
+        });
+
+        // Compare chart: use current loss and the opposite (20 ↔ 50)
+        const lossA = state.popLossPct;
+        const lossB = (state.popLossPct === 20) ? 50 : 20;
+        const rows = [];
+        COUNTRIES.forEach(cc => {
+          const rA = (()=>{ const saved=state.popLossPct; state.popLossPct=lossA; const r=calcScenario(cc.pop); state.popLossPct=saved; return r; })();
+          const rB = (()=>{ const saved=state.popLossPct; state.popLossPct=lossB; const r=calcScenario(cc.pop); state.popLossPct=saved; return r; })();
+          rows.push({ country: cc.key, a: rA.gap, b: rB.gap });
+        });
+
+        const ctx2 = document.getElementById("chartCompare").getContext("2d");
+        if(compareChart) compareChart.destroy();
+        compareChart = new Chart(ctx2, {
+          type: "bar",
+          data: {
+            labels: rows.map(r => r.country),
+            datasets: [
+              { label:`Pop -${lossA}%`, data: rows.map(r => r.a) },
+              { label:`Pop -${lossB}%`, data: rows.map(r => r.b) },
+            ]
+          },
+          options: {
+            responsive:true,
+            plugins:{
+              legend:{ position:"bottom" },
+              tooltip:{ callbacks:{
+                label: (ctx)=> `${ctx.dataset.label}: ${fmt.format(ctx.raw)}`
+              }}
+            },
+            scales:{
+              y:{ ticks:{ callback:(v)=> `${Math.round(v/1e6)}M` } }
+            }
+          }
+        });
+      }
+
+      function renderAll(){
+        renderCountries();
+        renderPresets();
+        renderControlsLabels();
+        renderOutputs();
+        renderCharts();
+      }
+
+      // ---------- Wire controls ----------
+      els.popLoss.addEventListener("input", (e)=>{ state.popLossPct = parseInt(e.target.value,10); renderAll(); });
+      els.empShare.addEventListener("input", (e)=>{ state.employmentShare = parseFloat(e.target.value); renderAll(); });
+      els.prod.addEventListener("input", (e)=>{ state.annualProdPct = parseFloat(e.target.value); renderAll(); });
+      els.prodYears.addEventListener("input", (e)=>{ state.prodYears = parseInt(e.target.value,10); renderAll(); });
+      els.out.addEventListener("input", (e)=>{ state.annualOutputPct = parseFloat(e.target.value); renderAll(); });
+
+      document.querySelectorAll("[data-set-pop]").forEach(b => b.addEventListener("click", ()=>{
+        state.popLossPct = parseInt(b.getAttribute("data-set-pop"),10);
+        syncControls(); renderAll();
+      }));
+      document.querySelectorAll("[data-set-prod]").forEach(b => b.addEventListener("click", ()=>{
+        state.annualProdPct = parseFloat(b.getAttribute("data-set-prod"));
+        syncControls(); renderAll();
+      }));
+
+      // Assumptions / Sources
+      function toggleModal(which){
+        if(which==="assumptions"){
+          const on = els.modalAssumptions.style.display !== "none";
+          els.modalAssumptions.style.display = on ? "none" : "block";
+          els.btnAssumptions.classList.toggle("active", !on);
+        } else {
+          const on = els.modalSources.style.display !== "none";
+          els.modalSources.style.display = on ? "none" : "block";
+          els.btnSources.classList.toggle("active", !on);
+        }
+      }
+      els.btnAssumptions.addEventListener("click", ()=>toggleModal("assumptions"));
+      els.btnSources.addEventListener("click", ()=>toggleModal("sources"));
+      els.closeAssumptions.addEventListener("click", ()=>{
+        els.modalAssumptions.style.display="none";
+        els.btnAssumptions.classList.remove("active");
+      });
+      els.closeSources.addEventListener("click", ()=>{
+        els.modalSources.style.display="none";
+        els.btnSources.classList.remove("active");
+      });
+
+      // Initial
+      syncControls();
+      renderAll();
+    </script>
+  </body>
+</html>
